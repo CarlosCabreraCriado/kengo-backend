@@ -38,12 +38,14 @@ export class usuarioController {
     }
   }
 
-  static async consumirMagicLink(req: Request, res: Response) {
+  static async consumirMagicLink(req: Request, res: Response): Promise<void> {
     try {
-      console.log("Consuming magic link with body:", req.body);
       const { token } = req.body ?? {};
 
-      if (!token) res.status(400).json({ error: "token required" });
+      if (!token) {
+        res.status(400).json({ error: "token required" });
+        return;
+      }
 
       const payload = jwt.verify(token, SECRET) as {
         sub: string;
@@ -51,10 +53,20 @@ export class usuarioController {
         jti: string;
       };
 
-      console.log("Decoded JWT payload:", payload);
+      const { data, setCookieHeader } = await directusLogin(payload.sub, payload.pw);
 
-      const data = await directusLogin(payload.sub, payload.pw);
-      res.json({ tokens: data, email: payload.sub, pass: payload.pw });
+      // Reenviar cookies de Directus al cliente
+      if (setCookieHeader) {
+        const cookies = Array.isArray(setCookieHeader)
+          ? setCookieHeader
+          : [setCookieHeader];
+
+        cookies.forEach(cookie => {
+          res.append('Set-Cookie', cookie);
+        });
+      }
+
+      res.json({ ok: true, email: payload.sub });
     } catch (e: any) {
       console.error("Error consuming magic link:", e);
       res.status(400).json({ error: "invalid_or_expired", message: e.message });

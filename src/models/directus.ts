@@ -51,15 +51,18 @@ export async function directusLogin(email: string, password: string) {
   const res = await fetch(`${process.env.DIRECTUS_URL}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    // mode json para recibir access/refresh en el cuerpo
-    body: JSON.stringify({ email, password, mode: "json" }),
+    // mode session para recibir cookies httpOnly
+    body: JSON.stringify({ email, password, mode: "session" }),
   });
   if (!res.ok) throw new Error(`Directus login ${res.status}`);
+
+  // Obtener headers Set-Cookie para reenviar al cliente
+  const setCookieHeader = res.headers.get('set-cookie');
   const json = await res.json();
-  return json.data as {
-    access_token: string;
-    refresh_token?: string;
-    expires?: number;
+
+  return {
+    data: json.data,
+    setCookieHeader
   };
 }
 
@@ -129,4 +132,31 @@ export async function patchOne<T extends keyof Schema>(
 
 export async function removeOne<T extends keyof Schema>(collection: T, id: ID) {
   return directus.request(deleteItem(collection, id));
+}
+
+export interface DirectusUserData {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  telefono: string | null;
+  direccion: string | null;
+}
+
+export async function getUserById(userId: string): Promise<DirectusUserData | null> {
+  const res = await fetch(
+    `${process.env.DIRECTUS_URL}/users/${userId}?fields=id,first_name,last_name,email,telefono,direccion`,
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.DIRECTUS_STATIC_TOKEN}`,
+      },
+    }
+  );
+  if (!res.ok) return null;
+  const json = await res.json();
+  return json.data;
+}
+
+export function getFileUrl(fileId: string): string {
+  return `${process.env.DIRECTUS_URL}/assets/${fileId}`;
 }

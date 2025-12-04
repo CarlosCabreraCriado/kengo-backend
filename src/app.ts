@@ -1,27 +1,29 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import bodyParser from "body-parser";
 import cors from "cors";
 import express from "express";
+import cookieParser from "cookie-parser";
 
 import apiKengo from "./routes/apiKengo";
 
 const app = express();
 const PORT = 3000;
 
-app.use(cors({ origin: true }));
+// CORS configurado para cookies
+app.use(cors({
+  origin: [
+    'https://app.kengoapp.com',
+    'https://admin.kengoapp.com',
+    'http://localhost:4200'
+  ],
+  credentials: true
+}));
+
+app.use(cookieParser());
 app.use(express.json());
 
 app.use("/", apiKengo);
-
-app.use(
-  cors({
-    origin: "*", // o '*' para todos los orígenes
-  }),
-);
-
-app.use(bodyParser.json());
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);
